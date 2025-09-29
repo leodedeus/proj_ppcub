@@ -1,0 +1,19 @@
+# Ignorar pastas de ambientes virtuais
+venv/
+.venv/
+*/venv/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# VS Code
+.vscode/
+
+# Logs e Dados
+*.log
+data/
+
+# Arquivos de sistema
+.DS_Store
