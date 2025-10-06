@@ -11,7 +11,7 @@ class AtividadePermitida(BaseModel):
     restricao_uso: Optional[str] = None
     notas_gerais: List[str] = []
     notas_especificas: List[str] = []
-    observacao: List[str] = []
+    observacao: Optional[str] = None
 
 class Endereco(BaseModel):
     endereco_completo: str
