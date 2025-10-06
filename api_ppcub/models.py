@@ -6,17 +6,19 @@ from typing import List, Optional
 class AtividadePermitida(BaseModel):
     cod_atividade: Optional[str] = None
     descricao_atividade: Optional[str] = None # Supondo que você tenha uma descrição
-    resultado: str
+    #resultado: str
+    uso_purp: str
     restricao_uso: Optional[str] = None
     notas_gerais: List[str] = []
     notas_especificas: List[str] = []
+    observacao: List[str] = []
 
 class Endereco(BaseModel):
     endereco_completo: str
     cipu: int
     ciu: str
     cep: str
-    pn_uso: Optional[str] = None
+    pn_uso: str
     atividades_permitidas: List[AtividadePermitida] = []
 
 class ViabilidadeResponse(BaseModel):

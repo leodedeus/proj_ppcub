@@ -17,29 +17,106 @@ def get_viabilidade_por_cep(cep: str) -> Dict[str, Any]:
             # Substitua vw_viabilidade_atividade pelo nome real da sua view
             # e os nomes das colunas pelos nomes corretos na sua view
             sql_query = """
+                with busca_atividades as (
                 SELECT
-                    endereco_cartorial,
-                    cipu,
-                    ciu,
-                    cep,
-                    uso,
-                    codigo_subclasse,
-                    subclasse,
-                    restricao_uso_purp,
-                    nota_geral,
-                    nota_especifica
-                FROM
-                    ppcub.ppcub_busca_atividade
-                WHERE
-                    cep = %s
-                ORDER BY endereco_cartorial, codigo_subclasse, nota_geral, nota_especifica;
+                    ROW_NUMBER() OVER (ORDER BY lr.pu_cipu) AS id,
+                    cast(lr.pu_cipu as int) as cipu,
+                    lr.pu_ciu as ciu,
+                    lr.pu_cep as cep,
+                    lr.pu_end_cart as endereco_cartorial,
+                    lr.pu_end_usual as endereco_usual,
+                    lr.pn_cod_par as codigo_parametro,
+                    lr.pn_uso as uso,
+                    aii.ppcub_cod_subclasse as codigo_subclasse,
+                    aii.ppcub_subclasse as subclasse,
+                    Null as endereco_purp,
+                    aii.ppcub_uso as uso_atividade,
+                    CASE 
+                        WHEN aii.ppcub_uso LIKE '%(%' THEN
+                            TRIM(BOTH ' ' FROM 
+                                (REGEXP_MATCH(aii.ppcub_uso, '\((.*)\)'))[1]
+                            )
+                        ELSE NULL 
+                    END AS restricao_uso_atividade,
+                    Null as cod_nota_geral,
+                    Null as nota_geral,
+                    Null as cod_nota_especifica,
+                    Null as nota_especifica,
+                    'É necessário atender ao número de vagas definido na legislação' as observacao
+                from app_fdw_user.view_mat_lote_registrado as lr
+                    inner join app_fdw_user.view_mat_tb_ppcub_dec_46414_24_anexo_ii_uos_tp11 as aii on aii.ppcub_uos = lr.pn_uso
+                    where lr.pu_cep = %s
+                union all
+                select
+                    ROW_NUMBER() OVER (ORDER BY lr.pu_cipu) AS id,
+                    cast(lr.pu_cipu as int) as cipu,
+                    lr.pu_ciu as ciu,
+                    lr.pu_cep as cep,
+                    lr.pu_end_cart as endereco_cartorial,
+                    lr.pu_end_usual as endereco_usual,
+                    lr.pn_cod_par as codigo_parametro,
+                    lr.pn_uso as uso,
+                    du.ppcub_cod_subclasse as codigo_subclasse,
+                    du.ppcub_subclasse as subclasse,
+                    du.ppcub_end_purp as endereco_purp,
+                    du.ppcub_uso_purp as uso_atividade,
+                    CASE 
+                        WHEN du.ppcub_uso_purp LIKE '%(%' THEN
+                            TRIM(BOTH ' ' FROM 
+                                (REGEXP_MATCH(du.ppcub_uso_purp, '\((.*)\)'))[1]
+                            )
+                        ELSE NULL 
+                    END AS restricao_uso_atividade,
+                    ng.ng_codigo as cod_nota_geral,
+                    ng.ng_descricao as nota_geral,
+                    ne.ne_codigo as cod_nota_especifica,
+                    ne.ne_descricao as nota_especifica,
+                    'É necessário atender ao número de vagas definido na legislação' AS observacao
+                from app_fdw_user.view_mat_lote_registrado as lr
+                    inner join app_fdw_user.view_mat_tb_ppcub_dec_46414_24_anexo_i_usos as du on du.ppcub_cod_itemb = lr.pn_uso
+                    left join app_fdw_user.view_mat_tb_ppcub_purp_notas_gerais as ng on ng.ng_tpup = du.ppcub_tpup
+                    left join app_fdw_user.view_mat_tb_ppcub_rel_uso_nota_especifica as ue on ue.une_cod_itemb = du.ppcub_cod_itemb
+                    left join app_fdw_user.view_mat_tb_ppcub_purp_notas_especificas as ne on ne.ne_codigo = ue.une_cod_nota_especifica
+                    where lr.pu_cep = %s
+                union all
+                SELECT
+                    ROW_NUMBER() OVER (ORDER BY lr.pu_cipu) AS id,
+                    cast(lr.pu_cipu as int) as cipu,
+                    lr.pu_ciu as ciu,
+                    lr.pu_cep as cep,
+                    lr.pu_end_cart as endereco_cartorial,
+                    lr.pu_end_usual as endereco_usual,
+                    lr.pn_cod_par as codigo_parametro,
+                    lr.pn_uso as uso,
+                    la.cod_subclasse as codigo_subclasse,
+                    la.subclasse as subclasse,
+                    Null as endereco_purp,
+                    la.uso_atividade as uso_atividade,
+                    CASE 
+                        WHEN la.uso_atividade LIKE '%(%' THEN
+                            TRIM(BOTH ' ' FROM 
+                                (REGEXP_MATCH(la.uso_atividade, '\((.*)\)'))[1]
+                            )
+                        ELSE NULL 
+                    END AS restricao_uso_atividade,
+                    Null as cod_nota_geral,
+                    Null as nota_geral,
+                    la.cod_nota_ln as cod_nota_especifica,
+                    la.nota_especifica as nota_especifica,
+                    'É necessário atender ao número de vagas definido na legislação' as observacao
+                from app_fdw_user.view_mat_lote_registrado as lr
+                    inner join app_fdw_user.view_tb_luos_atividades_notas as la on la.uos = lr.pn_uso
+                    where lr.pu_cep = %s
+                )
+                select *
+                from busca_atividades
             """
             cur.execute(sql_query, (cep,))
             rows = cur.fetchall()
 
             for row in rows:
                 (
-                    end_completo, cipu, ciu, cep, pn_uso, cod_ativ, atividade, restricao, nota_g, nota_e
+                    end_completo, cipu, ciu, cep, pn_uso, cod_ativ, atividade, uso_purp, restricao, nota_g, nota_e, observacao
                 ) = row
 
                 # Se for a primeira vez que vemos este endereço, cria a estrutura base
@@ -61,10 +138,12 @@ def get_viabilidade_por_cep(cep: str) -> Dict[str, Any]:
                     atividades_do_endereco[cod_ativ] = {
                         "cod_atividade": cod_ativ,
                         "descricao_atividade": atividade,
-                        "resultado": "Aprovado com Observações" if any([restricao, nota_g, nota_e]) else "Aprovado",
+                        #"resultado": "Aprovado com Observações" if any([restricao, nota_g, nota_e]) else "Aprovado",
+                        "uso_purp": uso_purp,
                         "restricao_uso": restricao,
                         "notas_gerais": [],
-                        "notas_especificas": []
+                        "notas_especificas": [],
+                        "observação": observacao
                     }
                 
                 # Adiciona as notas, evitando duplicatas
